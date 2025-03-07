@@ -1,8 +1,10 @@
 #include "WiFi_init.h"
-#include <WiFi.h>
+#include "WiFi.h"
 #include "led.h"
 #include "graphics.h"
 #include "typedef.h"
+#include "NTPClient.h"
+#include "WiFiUdp.h"
 
 //-------------------------------------------------------------------------------//
 // Enter the WIFI name and password that you can access to the Internet. 
@@ -17,25 +19,95 @@ unsigned long currentTime = millis(); // Current time
 unsigned long previousTime = 0; // Previous time
 static const long timeoutTime = 2000; // Define the timeout in milliseconds (eg: 2000ms = 2s)
 
+WiFiUDP ntpUDP; //Объект ntp
+NTPClient timeClient(ntpUDP, NTPserver1, 3600, 60000);
+String Time_Str;
+const char * c_Time = "00:00:00";
+String Date_Str;
+const char * d_Time = "2000-01-01";
+
 //-------------------------------------------------------------------------------//
 control_LED LED_blue (BLUEled, OFF);
 control_LED LED_green  (GREENled, OFF);
 
 //-------------------------------------------------------------------------------//
+static void init_NTP_client (void);
+
+//-------------------------------------------------------------------------------//
+ void NTPtimedata::getTimeData()
+ {
+    flags.status_NTP = ptr_NTP->update(); //Обновляем дату  
+    if (flags.status_NTP == true )
+    {
+      sec =  ptr_NTP->getSeconds();
+      minute = ptr_NTP->getMinutes();
+      hour = ptr_NTP->getHours();
+      day = ptr_NTP->getDay();
+    }
+    else
+    { Serial.println ("ntp_error"); }
+ }
+
+//-------------------------------------------------------------------------------//
 void init_WiFi_connection (void)
 {
-  Serial.print("Connecting to ");
+  flags.status_WiFi = OFF;
+  Serial.print("wait connect ");
   Serial.println(ssid);
   WiFi.begin(ssid, password);   // Connect to Wi-Fi network using SSID and password
-  while (WiFi.status() != WL_CONNECTED) 
+  for (uint8_t count = 0; count < 10; count++)
   {
-    delay(500);
-    //Serial.print(".");
+    if (WiFi.status() != WL_CONNECTED) 
+    { 
+      delay(100);  
+      continue;
+    }
+    else
+    {
+      Serial.print("IP address: ");
+      Serial.println(WiFi.localIP()); //start the web server
+      flags.status_WiFi = ON;
+      init_NTP_client ();
+      return;
+    }
   }
-  // Print the local IP address and start the web server
-  Serial.println("WiFi connected.");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("not_connected");
+  return;
+}
+
+//-------------------------------------------------------------------------------//
+static void init_NTP_client (void)
+{
+  timeClient.begin(); //Запускаем клиент времени  
+  timeClient.setTimeOffset(10800); 
+}
+
+//-------------------------------------------------------------------------------//
+void get_NTP_time (void)
+{
+  if (flags.status_WiFi == ON)
+  {
+    flags.status_NTP = timeClient.update(); //Обновляем дату  
+    if (flags.status_NTP == true )
+    {
+      Time_Str=timeClient.getFormattedTime(); //время формата `hh:mm:ss`  
+      c_Time  = Time_Str.c_str(); //конверсия типа string`a в тип char *
+      Serial.println (c_Time);
+      time_data_update (c_Time);
+      Date_Str=(timeClient.getFormattedDate().substring(0, 10)); //дата формата '2004-02-12T15:19:21+00:00'
+      d_Time = Date_Str.c_str();
+      Serial.println (d_Time);
+    }
+    else
+    { Serial.println ("ntp_error"); }
+  }
+  else
+  { Serial.println ("WiFi_not_connected");  }
+}
+
+//-------------------------------------------------------------------------------//
+static void start_HTTP_server (void)
+{
   server.begin();
 }
 

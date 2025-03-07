@@ -160,12 +160,14 @@ void lv_roller_set_selected(lv_obj_t * obj, uint16_t sel_opt, lv_anim_enable_t a
     lv_roller_t * roller = (lv_roller_t *)obj;
 
     /*In infinite mode interpret the new ID relative to the currently visible "page"*/
-    if(roller->mode == LV_ROLLER_MODE_INFINITE) {
+    if(roller->mode == LV_ROLLER_MODE_INFINITE) 
+    {
         uint32_t real_option_cnt = roller->option_cnt / LV_ROLLER_INF_PAGES;
         uint16_t current_page = roller->sel_opt_id / real_option_cnt;
         /*Set by the user to e.g. 0, 1, 2, 3...
          *Upscale the value to the current page*/
-        if(sel_opt < real_option_cnt) {
+        if(sel_opt < real_option_cnt) 
+        {
             uint16_t act_opt = roller->sel_opt_id - current_page * real_option_cnt;
             int32_t sel_opt_signed = sel_opt;
             /*Huge jump? Probably from last to first or first to last option.*/

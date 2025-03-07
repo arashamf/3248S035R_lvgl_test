@@ -147,7 +147,7 @@ void GT911_Scan(void)
             {
                 touched = 0;
                 GT911_WR_Reg(GT911_READ_XY_REG, (uint8_t *)&Clearbuf, 1);
-                Serial.printf("Dev_Now.TouchCount > 5\r\n");
+                //Serial.printf("Dev_Now.TouchCount > 5\r\n");
                 return ;
             }
             GT911_RD_Reg(GT911_READ_XY_REG + 1, &buf[1], Dev_Now.TouchCount * 8);
@@ -376,8 +376,8 @@ void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
     {
         data->point.x = Dev_Now.X[0];  //Set the coordinates
         data->point.y = Dev_Now.Y[0];
-        Serial.printf("touch:%d, x_in:%d, y_in:%d, x_out:%d, y_out:%d\r\n", 
-        touched, Dev_Now.X[0], Dev_Now.Y[0], data->point.x, data->point.y);
+       // Serial.printf("touch:%d, x_in:%d, y_in:%d, x_out:%d, y_out:%d\r\n", 
+       // touched, Dev_Now.X[0], Dev_Now.Y[0], data->point.x, data->point.y);
         data->state = LV_INDEV_STATE_PR;
     }
 }

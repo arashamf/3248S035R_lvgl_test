@@ -30,10 +30,18 @@ typedef union
 {	
 	struct 
 	{
-		uint8_t							: 7;
-		uint8_t flag_button 			: 1; 
+		uint8_t							: 5;
+		uint8_t	status_NTP				: 1;
+		uint8_t	status_WiFi				: 1;
+		uint8_t status_btn_scr 			: 1; 
 	};
-	uint8_t FlagStatus;
+	uint8_t status;
 } STATUS_t;
+
+//------------------------------------------------------------------------//
+const char digital [] = {'0','\n','1','\n','2','\n','3','\n','4','\n','5','\n','6','\n','7','\n',
+'8','\n','9'};
+
+extern STATUS_t flags;
 
 #endif 

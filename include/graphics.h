@@ -7,9 +7,7 @@
 
 //----------------------------------------------------------------------------//
 void screens_init (void);
-lv_obj_t *  main_menu_screen (lv_obj_t * scr);
-lv_obj_t *  mars_menu_screen (lv_obj_t * scr);
-lv_obj_t *  button_init (lv_obj_t * scr);
+void time_data_update (const char * );
 
 //----------------------------------------------------------------------------//
 class visual_LED

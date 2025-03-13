@@ -10,7 +10,8 @@
 #define LEAP_YEAR(Y)     ( (Y>0) && !(Y%4) && ( (Y%100) || !(Y%400) ) )
 
 
-class NTPClient {
+class NTPClient 
+{
   private:
     UDP*          _udp;
     bool          _udpSetup       = false;

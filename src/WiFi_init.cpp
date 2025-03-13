@@ -19,43 +19,62 @@ unsigned long currentTime = millis(); // Current time
 unsigned long previousTime = 0; // Previous time
 static const long timeoutTime = 2000; // Define the timeout in milliseconds (eg: 2000ms = 2s)
 
-WiFiUDP ntpUDP; //Объект ntp
-NTPClient timeClient(ntpUDP, NTPserver1, 3600, 60000);
-String Time_Str;
-const char * c_Time = "00:00:00";
-String Date_Str;
-const char * d_Time = "2000-01-01";
-
-//-------------------------------------------------------------------------------//
-control_LED LED_blue (BLUEled, OFF);
-control_LED LED_green  (GREENled, OFF);
+WiFiUDP ntpUDP; //объект udp
+NTPClient timeClient(ntpUDP, NTPserver1, 3600, 60000); //конструктор объекта клиента ntp
+NTPtimedata ntp_data (timeClient, c_Time, time_data_update); //конструктор объекта с данными времени
+char c_Time [15]= "00:00:00";  //массив с данными времени формата чч:мм:сс, который будет передаваться для отображения на экране
+char d_Time [15]= "01.01.2000"; //массив с данными даты формата дд.мм.гггг, который будет передаваться для отображения на экране
 
 //-------------------------------------------------------------------------------//
 static void init_NTP_client (void);
 
 //-------------------------------------------------------------------------------//
- void NTPtimedata::getTimeData()
+ void NTPtimedata::convert_time (void)
  {
-    flags.status_NTP = ptr_NTP->update(); //Обновляем дату  
-    if (flags.status_NTP == true )
+    UNIX_time = _ptr_NTP->getEpochTime();
+    Serial.println("convert data");
+    sec =  (UNIX_time % 60);
+    minute = (UNIX_time % 3600)/60;
+    hour =  (UNIX_time % 86400L)/3600;
+    sprintf (_buf, "%02u:%02u:%02u", hour, minute, sec);
+    _put_data_scr(_buf);
+ }
+
+//-------------------------------------------------------------------------------//
+ void NTPtimedata::getTimeData(void)
+ {
+    flags.status_NTP = false;
+    if (flags.status_WiFi == ON)
     {
-      sec =  ptr_NTP->getSeconds();
-      minute = ptr_NTP->getMinutes();
-      hour = ptr_NTP->getHours();
-      day = ptr_NTP->getDay();
+      flags.status_NTP = _ptr_NTP->update(); //Обновляем дату  
+      if (flags.status_NTP == true )
+      { 
+        NTPtimedata::convert_time (); 
+      }
+      else
+      { Serial.println ("ntp_error"); }
+      NTPLed->led_status (flags.status_NTP);
     }
     else
-    { Serial.println ("ntp_error"); }
- }
+    { Serial.println("wifi not_connected"); }
+  }
+
+//-------------------------------------------------------------------------------//
+void NTPtimedata::time_inc (void) 
+{
+  UNIX_time++;
+  NTPtimedata::convert_time ();
+}
 
 //-------------------------------------------------------------------------------//
 void init_WiFi_connection (void)
 {
   flags.status_WiFi = OFF;
-  Serial.print("wait connect ");
+  WiFiLed->led_status (flags.status_WiFi);
+
   Serial.println(ssid);
   WiFi.begin(ssid, password);   // Connect to Wi-Fi network using SSID and password
-  for (uint8_t count = 0; count < 10; count++)
+  for (uint8_t count = 0; count < 10; count++) //10 попыток соединения
   {
     if (WiFi.status() != WL_CONNECTED) 
     { 
@@ -67,6 +86,7 @@ void init_WiFi_connection (void)
       Serial.print("IP address: ");
       Serial.println(WiFi.localIP()); //start the web server
       flags.status_WiFi = ON;
+      WiFiLed->led_status (flags.status_WiFi);
       init_NTP_client ();
       return;
     }
@@ -79,30 +99,19 @@ void init_WiFi_connection (void)
 static void init_NTP_client (void)
 {
   timeClient.begin(); //Запускаем клиент времени  
-  timeClient.setTimeOffset(10800); 
+  timeClient.setTimeOffset(10800); //установка московского времени
 }
 
 //-------------------------------------------------------------------------------//
 void get_NTP_time (void)
 {
-  if (flags.status_WiFi == ON)
-  {
-    flags.status_NTP = timeClient.update(); //Обновляем дату  
-    if (flags.status_NTP == true )
-    {
-      Time_Str=timeClient.getFormattedTime(); //время формата `hh:mm:ss`  
-      c_Time  = Time_Str.c_str(); //конверсия типа string`a в тип char *
-      Serial.println (c_Time);
-      time_data_update (c_Time);
-      Date_Str=(timeClient.getFormattedDate().substring(0, 10)); //дата формата '2004-02-12T15:19:21+00:00'
-      d_Time = Date_Str.c_str();
-      Serial.println (d_Time);
-    }
-    else
-    { Serial.println ("ntp_error"); }
-  }
-  else
-  { Serial.println ("WiFi_not_connected");  }
+  ntp_data.getTimeData();
+}
+
+//-------------------------------------------------------------------------------//
+void time_update (void)
+{
+  ntp_data.time_inc ();
 }
 
 //-------------------------------------------------------------------------------//
@@ -114,7 +123,7 @@ static void start_HTTP_server (void)
 //-------------------------------------------------------------------------------//
 void WiFi_connection_check (void)
 {
-    WiFiClient client = server.available();   // Monitor clients
+  WiFiClient client = server.available();   // Monitor clients
   if (client)  // If a new client connects
   {                            
     currentTime = millis();
@@ -144,28 +153,24 @@ void WiFi_connection_check (void)
             if (header.indexOf("GET /16/on") >= 0)  // turn GPIO 
             {
               output25State = "on";
-              Gled->switch_led (ON);
             } 
             else 
             {
               if (header.indexOf("GET /16/off") >= 0) 
               {
                 output25State = "off";
-                Gled->switch_led (OFF);
               }
               else 
               {
                 if (header.indexOf("GET /17/on") >= 0) 
                 {
                   output26State = "on";
-                  Bled->switch_led (ON);
                 } 
                 else 
                 {
                   if (header.indexOf("GET /17/off") >= 0) 
                   {
                     output26State = "off";
-                    Bled->switch_led (OFF);
                   }
                 }
               }

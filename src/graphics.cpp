@@ -10,123 +10,111 @@
 #define CENTER_HOR   (TFT_WIDTH/2)
 
 //------------------------------------------------------------------------//
-static lv_style_t             bigStyle;
+static lv_style_t             midFontStyle;
+static lv_style_t             BigStyle;
+
 static lv_obj_t  *            main_menu_scr;
-static lv_obj_t  *            clock_scr;
-static lv_obj_t  *            main_label;
-static lv_obj_t  *            scr_time_label;
-static lv_obj_t  *            led_blue;
-static lv_obj_t  *            led_green;
+static lv_obj_t  *            setup_scr;
+
 static lv_obj_t  *            meter;
 static lv_obj_t  *            time_win;
 static lv_obj_t  *            c_label;
-visual_LED *                  Bled;
-visual_LED *                  Gled;
+
+visual_LED *                  WiFiLed;
+visual_LED *                  NTPLed;
+
+set_label  *                  main_label;
+set_label  *                  clock_label;
+set_label  *                  setup_scr_label;
+
 visual_button *               BlueBtn;
 visual_button *               GreenBtn;
-visual_button *               ToogleMarsScrBtn;
-visual_button *               ToogleSetupScrBtn;
+visual_button *               ToogleSetupScrBtn1;
+visual_button *               ToogleSetupScrBtn2;
 visual_button *               ToogleInitWiFiBtn;
 visual_button *               GetNTPtimeBtn;
 
+text_area     *               ClockArea;
+text_area     *               statusWiFi;
+text_area     *               statusNTP;
 //------------------------------------------------------------------------//
-char label1 []= "BLUE";
-char label2 []= "GREEN";
-char label3 []= "MTC";  //Марсианское координированное время
-char label4 []= "MainMenu";  
-char label5 []= "WifiInit"; 
-char label6 []= "Get time"; 
+char label1 []= "MainMenu";  
+char label2 []= "Setup";  //Марсианское координированное время
+char label3 []= "WifiInit"; 
+char label4 []= "Get time"; 
 
+const char label_main_src []= "Main Menu"; 
+const char label_setup_src []= "Setup Menu"; 
 //------------------------------------------------------------------------//
 uint8_t size_x = 90;
 uint8_t size_y = 50;
-uint8_t koord_x = 50;
-uint8_t koord_y = 100;
+
 //------------------------------------------------------------------------//
-static void style_init (lv_style_t * Style);
-lv_obj_t *  main_menu_screen_init (lv_obj_t * );
-lv_obj_t *  time_screen_init (lv_obj_t * );
+static void style_init (lv_style_t * , const lv_font_t * );
+static lv_obj_t *  main_menu_screen_init (void);
+static lv_obj_t *  time_screen_init (void);
 static void event_handler_get_NTP_time(lv_event_t * );
 static void event_handler_switch_btn(lv_event_t * );
-static void event_handler_btn_Bled(lv_event_t *);
-static void event_handler_btn_Gled(lv_event_t * );
 static void event_handler_wifi_btn(lv_event_t * );
+
 static void clock_meter_init (lv_obj_t * );
 static void set_value(void * , int32_t ); //коллбэк анимации циферблата часов
-static lv_obj_t * lv_win_time(lv_obj_t * , lv_obj_t * , lv_obj_t *);
 
 //------------------------------------------------------------------------//
 void screens_init (void)
 {
-    main_menu_scr = lv_scr_act(); //Get the active screen of the default display
-    main_menu_scr = main_menu_screen_init (main_menu_scr);
-    clock_scr = time_screen_init (clock_scr);
+    main_menu_scr = main_menu_screen_init ();
+    setup_scr = time_screen_init ();
 }
 
 //------------------------------------------------------------------------//
-static void style_init (lv_style_t * Style)
+static void style_init (lv_style_t * Style, const lv_font_t * font_value)
 {
     lv_style_init(Style);
-    lv_style_set_text_font(Style, &lv_font_montserrat_28);
+    lv_style_set_text_font(Style, font_value);
+    
     
 }
 
 //------------------------------------------------------------------------//
-lv_obj_t *  main_menu_screen_init (lv_obj_t * scr)
+static lv_obj_t * main_menu_screen_init (void)
 {
-    main_label = lv_label_create(scr);
-    lv_label_set_long_mode(main_label, LV_LABEL_LONG_WRAP);
-    lv_label_set_text(main_label, "MAIN MENU");
-    lv_obj_set_size(main_label, 240, 40);
-    lv_obj_set_pos(main_label, CENTER_HOR-80, 15);
-    //lv_obj_set_x(main_label, LV_ALIGN_OUT_TOP_MID);
-   // lv_obj_set_y(main_label, 25);
-    style_init (&bigStyle);
-    lv_obj_add_style(main_label, &bigStyle, 0);
-
-
+    lv_obj_t *  scr = lv_obj_create(NULL); //Create a base object
+    scr = lv_scr_act(); //Get the active screen of the default display
     flags.status_btn_scr = main_screen; //main_screen == 0
 
-    BlueBtn = new visual_button (scr, event_handler_btn_Bled, size_x, size_y, 5, 
-    CENTER_VER-3*size_y, label1);
+    style_init (&midFontStyle, &lv_font_montserrat_20);
+    style_init (&BigStyle, &lv_font_montserrat_28);
+    main_label = new set_label (scr, 150, 40, LV_ALIGN_TOP_MID, 25, 5, &midFontStyle, label_main_src);
 
-    GreenBtn = new visual_button (scr, event_handler_btn_Gled, size_x, size_y, 
-    CENTER_HOR+65, CENTER_VER-3*size_y, label2);
+    ToogleSetupScrBtn1 = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
+    LV_ALIGN_TOP_MID, 0, 50, label2);
 
-    ToogleMarsScrBtn = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
-    CENTER_HOR-size_x/2, CENTER_VER-3*size_y, label3);
-
-    clock_meter_init (scr);
-
-    Bled = new visual_LED (scr, led_blue, koord_x/2, koord_y/2, LV_PALETTE_BLUE);
-    Gled = new visual_LED (scr, led_green, CENTER_HOR+(2*koord_x), koord_y/2, LV_PALETTE_GREEN);;
-    Gled->toogle_led ();
-    Bled->toogle_led ();
+    clock_label = new set_label (scr, 200, 50, LV_ALIGN_CENTER, 40, 5, &BigStyle,  "01:00:00");
+    //clock_meter_init (scr); //инициализация анимации часов
     return scr; 
 }
 
 //-----------------------------------------------------------------------//
-lv_obj_t *  time_screen_init (lv_obj_t * scr)
+static lv_obj_t *  time_screen_init (void)
 {
-    scr = lv_obj_create (NULL); 
-    scr_time_label = lv_label_create(scr);
-    lv_label_set_long_mode(scr_time_label, LV_LABEL_LONG_WRAP);
-    lv_label_set_text(scr_time_label, "TIME CLOCK");
-    lv_obj_set_size(scr_time_label, 240, 40);
-    lv_obj_set_pos(scr_time_label, CENTER_HOR-80, 5);
+    lv_obj_t *  scr = lv_obj_create (NULL); 
 
-    lv_obj_add_style(scr_time_label, &bigStyle, 0);
+    setup_scr_label = new set_label (scr, 240, 40, LV_ALIGN_TOP_MID, 20, 5, &midFontStyle, label_setup_src);
 
-    ToogleSetupScrBtn = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
-    5, CENTER_VER-4*size_y, label4);
+    ToogleSetupScrBtn2 = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
+    LV_ALIGN_TOP_LEFT, 5, 40, label1);
 
     ToogleInitWiFiBtn = new visual_button (scr, event_handler_wifi_btn, size_x, size_y, 
-    CENTER_HOR-size_x/2, CENTER_VER-4*size_y, label5);
+    LV_ALIGN_TOP_MID, 0, 40, label3);
 
     GetNTPtimeBtn = new visual_button (scr, event_handler_get_NTP_time, size_x, size_y, 
-    CENTER_HOR+65, CENTER_VER-4*size_y, label6);
+    LV_ALIGN_TOP_RIGHT, 0, 40, label4);
 
-    c_label = lv_win_time(scr, time_win, c_label);
+    WiFiLed = new visual_LED (scr, LV_ALIGN_LEFT_MID, 0, 0);
+    statusWiFi = new text_area (scr, LV_ALIGN_LEFT_MID, 40, 0, lv_pct(33), "status WiFi");
+    NTPLed = new visual_LED (scr, LV_ALIGN_LEFT_MID, 0, size_y+10);
+    statusNTP = new text_area (scr, LV_ALIGN_LEFT_MID, 40, size_y+10, lv_pct(33), "status NTP");
     return scr; 
 }
 
@@ -147,28 +135,13 @@ static void event_handler_switch_btn(lv_event_t * event)
     switch (flags.status_btn_scr)
     {
         case mcd_screen:
-            lv_scr_load(clock_scr);
+            lv_scr_load(setup_scr);
             break;
 
         case main_screen:
             lv_scr_load(main_menu_scr);
             break;
     }
-}
-//-----------------------------------------------------------------------//
-static void event_handler_btn_Bled( lv_event_t * event)
-{
-    lv_obj_t * btn = lv_event_get_target(event);
-    lv_obj_t * label = lv_obj_get_child(btn, 0);
-    Bled->toogle_led();
-}
-
-//------------------------------------------------------------------------//
-static void event_handler_btn_Gled(lv_event_t * event)
-{
-	lv_obj_t *  btn = lv_event_get_target(event);
-	lv_obj_t * label = lv_obj_get_child(btn, 0);
-    Gled->toogle_led();
 }
 
 //------------------------------------------------------------------------//
@@ -198,6 +171,18 @@ void visual_LED::toogle_led (void)
 }
 
 //------------------------------------------------------------------------//
+void visual_LED::led_status (uint8_t status)
+{
+    lv_color_t color;
+    if (status == true)
+    {   lv_led_set_color(_led, green_color);  }
+    else
+    {   lv_led_set_color(_led, red_color);    }
+    
+    switch_led (ON);
+}
+
+//------------------------------------------------------------------------//
 static void set_value(void * indic, int32_t v)
 {
     lv_meter_set_indicator_end_value(meter, (lv_meter_indicator_t *)indic, v);
@@ -208,7 +193,7 @@ static void clock_meter_init (lv_obj_t * scr)
 {
     meter = lv_meter_create(scr);
     lv_obj_set_size(meter, 250, 250);
-    lv_obj_align (meter, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_obj_align (meter, LV_ALIGN_BOTTOM_MID, 0, -20); //изменение начала координат и ввод новых координат
 
     //Create a scale for the minutes
     //61 ticks in a 360 degrees range (the last and the first line overlaps)
@@ -264,31 +249,15 @@ static void clock_meter_init (lv_obj_t * scr)
 }
 
 //------------------------------------------------------------------------//
-static lv_obj_t * lv_win_time(lv_obj_t * scr, lv_obj_t  * time_win, lv_obj_t * c_label)
+void set_label::setup_new_text (const char * new_txt)
 {
-    time_win = lv_win_create(scr, 40);
-    lv_obj_set_size (time_win, 200, 300);
-    lv_obj_align (time_win, LV_ALIGN_BOTTOM_MID, 0, -20);
-
-    lv_obj_t * head = lv_win_get_header(time_win);
-    lv_obj_t * t_label = lv_label_create(head);
-    lv_label_set_text(t_label, "TIME CLOCK");
-
-    static lv_style_t Style;
-    lv_style_init(&Style);
-    lv_style_set_text_font(&Style, &lv_font_montserrat_20);
-    lv_obj_add_style(main_label, &Style, 0);
-
-    lv_obj_t * cont = lv_win_get_content(time_win);  //Content can be added here
-    c_label = lv_label_create(cont);
-    lv_label_set_text_static (c_label, "no_time\n");
-    lv_obj_add_style(c_label, &Style, 0);
-    return c_label;
+    _txt = new_txt;
+    lv_label_set_text_static (scr_label, _txt);
 }
 
 //------------------------------------------------------------------------//
-void time_data_update (const char * text)
+void time_data_update (char * new_text)
 {
-   // lv_label_set_text_fmt(c_label, text);
-    lv_label_set_text_static (c_label, text);
+   //lv_label_set_text_static (c_label, text);
+   clock_label->setup_new_text (new_text);
 }

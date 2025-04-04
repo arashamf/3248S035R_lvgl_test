@@ -3,12 +3,13 @@
 #include "i2c_driver.h"
 #include <Arduino.h>
 #include "lvgl.h"
+#include "graphics_init.h"
 
 //----------------------------------------------------------------------------//
 #define GT_CMD_WR           0XBA      
-#define GT_CMD_RD           0XBB        
+#define GT_CMD_RD           0XBB      
 #define GT911_MAX_WIDTH     320        
-#define GT911_MAX_HEIGHT    480         
+#define GT911_MAX_HEIGHT    480   
 #define GT_CTRL_REG         0X8040       
 #define GT_CFGS_REG         0X8047       
 #define GT_CHECK_REG        0X80FF       
@@ -271,7 +272,6 @@ void GT911_Int()
             s_GT911_CfgParams[184] = (~config_Checksum) + 1;
 
             Serial.printf("config_Checksum=0x%2X\r\n", s_GT911_CfgParams[184]);
-            Serial.printf("\r\n*************************\r\n");
 
             for (i = 0; i < sizeof(s_GT911_CfgParams); i++)
             {
@@ -279,7 +279,6 @@ void GT911_Int()
                 if ((i + 1) % 10 == 0)
                 {    Serial.printf("\r\n"); }
             }
-            Serial.printf("\r\n*************************\r\n");
             GT911_WR_Reg(GT_CFGS_REG, (uint8_t *)s_GT911_CfgParams, sizeof(s_GT911_CfgParams));
             GT911_RD_Reg(GT_CFGS_REG, (uint8_t *)&s_GT911_CfgParams[0], 186);
 
@@ -362,22 +361,26 @@ void  GT9147_Scan(uint8_t mode)
 {
     uint8_t buf[41];
     GT911_RD_Reg(GT911_READ_XY_REG, buf, 1); 
-    Serial.printf("GT911_READ_XY_REG:%d\r\n", buf[0]); 
+    //Serial.printf("GT911_READ_XY_REG:%d\r\n", buf[0]); 
 }
 
 //-------------------------------Read the touchpad-------------------------------//
 void my_touchpad_read( lv_indev_drv_t * indev_driver, lv_indev_data_t * data )
 {
-    //uint16_t touchX, touchY;
     GT911_Scan();
     if ( touched == 0)
     { data->state = LV_INDEV_STATE_REL; }
     else
     {
-        data->point.x = Dev_Now.X[0];  //Set the coordinates
-        data->point.y = Dev_Now.Y[0];
-       // Serial.printf("touch:%d, x_in:%d, y_in:%d, x_out:%d, y_out:%d\r\n", 
-       // touched, Dev_Now.X[0], Dev_Now.Y[0], data->point.x, data->point.y);
+        #ifdef LANDSCAPE 
+            data->point.x = 480-Dev_Now.Y[0];  //если альбом
+            data->point.y = Dev_Now.X[0];
+        #else 
+            data->point.x = Dev_Now.X[0];     //если портрет
+            data->point.y = Dev_Now.Y[0];
+        #endif
+        //Serial.printf("touch:%d, x_in:%d, y_in:%d, x_out:%d, y_out:%d\r\n", 
+        //touched, Dev_Now.X[0], Dev_Now.Y[0], data->point.x, data->point.y);
         data->state = LV_INDEV_STATE_PR;
     }
 }

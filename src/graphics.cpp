@@ -10,38 +10,48 @@
 #define CENTER_HOR   (TFT_WIDTH/2)
 
 //------------------------------------------------------------------------//
-static lv_style_t             midFontStyle;
-static lv_style_t             BigStyle;
+static lv_style_t           midFontStyle;
+static lv_style_t           BigStyle;
 
-static lv_obj_t  *            main_menu_scr;
-static lv_obj_t  *            setup_scr;
+static lv_obj_t  *          main_menu_scr; //главный экран
+static lv_obj_t  *          wifi_id_setup_scr; //экран настройки логина пароля WiFi
+static lv_obj_t  *          ip_setup_scr;
 
-static lv_obj_t  *            meter;
-static lv_obj_t  *            time_win;
-static lv_obj_t  *            c_label;
+static lv_obj_t  *          wifi_id_kb;  //объект клавиатуры
 
-visual_LED *                  WiFiLed;
-visual_LED *                  NTPLed;
+visual_LED *                WiFiLed;
+visual_LED *                NTPLed;
 
-set_label  *                  main_label;
-set_label  *                  clock_label;
-set_label  *                  setup_scr_label;
+set_label  *                main_label;
+set_label  *                clock_label;
+set_label  *                setup_scr_label;
+set_label  *                lbl_passwd;
+set_label  *                lbl_login;
+set_label  *                lbl_ip_area;
 
-visual_button *               BlueBtn;
-visual_button *               GreenBtn;
-visual_button *               ToogleSetupScrBtn1;
-visual_button *               ToogleSetupScrBtn2;
-visual_button *               ToogleInitWiFiBtn;
-visual_button *               GetNTPtimeBtn;
+visual_button *             ToogleSetupScrBtn1;
+visual_button *             ToogleSetupScrBtn2;
+visual_button *             ToogleSetupScrBtn3;
+visual_button *             ToogleInitWiFiBtn;
+visual_button *             GetNTPtimeBtn;
+visual_button *             ToogleSetIPScrBtn;
 
-text_area     *               ClockArea;
-text_area     *               statusWiFi;
-text_area     *               statusNTP;
+text_area     *             statusWiFi;
+text_area     *             statusNTP;
+text_area     *             passwd_area;
+text_area     *             login_area;
+text_area     *             setup_ip_area;
+
+static lv_obj_t  *          dd;
+static lv_obj_t  *          meter; //объект циферблат часов
+
 //------------------------------------------------------------------------//
 char label1 []= "MainMenu";  
 char label2 []= "Setup";  //Марсианское координированное время
 char label3 []= "WifiInit"; 
 char label4 []= "Get time"; 
+char label5 []= "IP setup"; 
+char label6 []= "Back"; 
 
 const char label_main_src []= "Main Menu"; 
 const char label_setup_src []= "Setup Menu"; 
@@ -52,28 +62,33 @@ uint8_t size_y = 50;
 //------------------------------------------------------------------------//
 static void style_init (lv_style_t * , const lv_font_t * );
 static lv_obj_t *  main_menu_screen_init (void);
-static lv_obj_t *  time_screen_init (void);
+static lv_obj_t *  setup_screen_init (void);
+static lv_obj_t *  setupIP_screen_init (void);
+
 static void event_handler_get_NTP_time(lv_event_t * );
 static void event_handler_switch_btn(lv_event_t * );
+static void event_handler_switch2_btn(lv_event_t * );
 static void event_handler_wifi_btn(lv_event_t * );
 
-static void clock_meter_init (lv_obj_t * );
-static void set_value(void * , int32_t ); //коллбэк анимации циферблата часов
+static void passwd_event_cb(lv_event_t * );
+static void login_event_cb(lv_event_t * );
+static void setup_ip_event_cb(lv_event_t * );
+
+void lv_dropdown (lv_obj_t * scr);
 
 //------------------------------------------------------------------------//
 void screens_init (void)
 {
     main_menu_scr = main_menu_screen_init ();
-    setup_scr = time_screen_init ();
+    wifi_id_setup_scr = setup_screen_init ();
+    ip_setup_scr = setupIP_screen_init ();
 }
 
 //------------------------------------------------------------------------//
 static void style_init (lv_style_t * Style, const lv_font_t * font_value)
 {
     lv_style_init(Style);
-    lv_style_set_text_font(Style, font_value);
-    
-    
+    lv_style_set_text_font(Style, font_value);   
 }
 
 //------------------------------------------------------------------------//
@@ -81,41 +96,72 @@ static lv_obj_t * main_menu_screen_init (void)
 {
     lv_obj_t *  scr = lv_obj_create(NULL); //Create a base object
     scr = lv_scr_act(); //Get the active screen of the default display
-    flags.status_btn_scr = main_screen; //main_screen == 0
+    flags.status_btn_scr = main; //main_screen == 0
 
     style_init (&midFontStyle, &lv_font_montserrat_20);
     style_init (&BigStyle, &lv_font_montserrat_28);
-    main_label = new set_label (scr, 150, 40, LV_ALIGN_TOP_MID, 25, 5, &midFontStyle, label_main_src);
 
     ToogleSetupScrBtn1 = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
-    LV_ALIGN_TOP_MID, 0, 50, label2);
+    LV_ALIGN_TOP_LEFT, 0, 10, label2);
 
-    clock_label = new set_label (scr, 200, 50, LV_ALIGN_CENTER, 40, 5, &BigStyle,  "01:00:00");
-    //clock_meter_init (scr); //инициализация анимации часов
+    ToogleInitWiFiBtn = new visual_button (scr, event_handler_wifi_btn, size_x, size_y, 
+    LV_ALIGN_TOP_MID, 0, 10, label3);
+
+    GetNTPtimeBtn = new visual_button (scr, event_handler_get_NTP_time, size_x, size_y, 
+    LV_ALIGN_TOP_RIGHT, 0, 10, label4);
+
+    WiFiLed = new visual_LED (scr, LV_ALIGN_TOP_LEFT, 0, 75);
+    statusWiFi = new text_area (scr,  NULL, false,  "status WiFi", 22, LV_ALIGN_TOP_LEFT, 40, 75);
+
+    NTPLed = new visual_LED (scr, LV_ALIGN_TOP_MID, 0, 75);
+    statusNTP = new text_area (scr, NULL, false, "status NTP", 22, LV_ALIGN_TOP_MID,  75, 75);
+
+    clock_label = new set_label (scr, 200, 50, LV_ALIGN_CENTER, 40, 5, &BigStyle,  c_Time);
     return scr; 
 }
 
 //-----------------------------------------------------------------------//
-static lv_obj_t *  time_screen_init (void)
+static lv_obj_t *  setup_screen_init (void)
 {
     lv_obj_t *  scr = lv_obj_create (NULL); 
-
-    setup_scr_label = new set_label (scr, 240, 40, LV_ALIGN_TOP_MID, 20, 5, &midFontStyle, label_setup_src);
+    lv_coord_t x_ofs = 0;
+    lv_coord_t y_ofs = 100;
 
     ToogleSetupScrBtn2 = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
-    LV_ALIGN_TOP_LEFT, 5, 40, label1);
+    LV_ALIGN_TOP_LEFT, 0, 10, label1);
 
-    ToogleInitWiFiBtn = new visual_button (scr, event_handler_wifi_btn, size_x, size_y, 
-    LV_ALIGN_TOP_MID, 0, 40, label3);
+    ToogleSetIPScrBtn = new visual_button (scr, event_handler_switch2_btn, size_x, size_y, 
+    LV_ALIGN_TOP_MID, 0, 10, label5);
 
-    GetNTPtimeBtn = new visual_button (scr, event_handler_get_NTP_time, size_x, size_y, 
-    LV_ALIGN_TOP_RIGHT, 0, 40, label4);
+    passwd_area = new text_area (scr,  passwd_event_cb, false,  net_setting.password , 40, LV_ALIGN_TOP_RIGHT, x_ofs, y_ofs);
+    lbl_passwd = new set_label (scr, passwd_area->back_ta_ptr(), LV_ALIGN_OUT_TOP_LEFT, 5, 0, "password");
+    login_area = new text_area  (scr,  login_event_cb, false,  net_setting.ssid, 40, LV_ALIGN_TOP_LEFT, x_ofs, y_ofs);
+    lbl_login = new set_label (scr, login_area->back_ta_ptr(), LV_ALIGN_OUT_TOP_LEFT, 5, 0, "ssid");
 
-    WiFiLed = new visual_LED (scr, LV_ALIGN_LEFT_MID, 0, 0);
-    statusWiFi = new text_area (scr, LV_ALIGN_LEFT_MID, 40, 0, lv_pct(33), "status WiFi");
-    NTPLed = new visual_LED (scr, LV_ALIGN_LEFT_MID, 0, size_y+10);
-    statusNTP = new text_area (scr, LV_ALIGN_LEFT_MID, 40, size_y+10, lv_pct(33), "status NTP");
+    wifi_id_kb = lv_keyboard_create(scr); // Create a keyboard
+    lv_obj_set_size(wifi_id_kb, LV_HOR_RES, LV_VER_RES / 2);
+
     return scr; 
+}
+
+//-----------------------------------------------------------------------//
+static lv_obj_t *  setupIP_screen_init (void)
+{
+    lv_coord_t x_ofs = 0;
+    lv_coord_t y_ofs = 100;
+
+    lv_obj_t *  scr = lv_obj_create (NULL); 
+
+    ToogleSetupScrBtn3 = new visual_button (scr, event_handler_switch2_btn, size_x, size_y, 
+    LV_ALIGN_TOP_LEFT, 0, 10, label6);
+
+    setup_ip_area = new text_area (scr,  passwd_event_cb, false,  net_setting.ip , 33, LV_ALIGN_TOP_LEFT, x_ofs, y_ofs);
+    lbl_ip_area = new set_label (scr, setup_ip_area->back_ta_ptr(), LV_ALIGN_OUT_TOP_LEFT, 5, 0, "ip adress");
+
+    lv_dropdown (scr);
+
+    return scr; 
+
 }
 
 //-----------------------------------------------------------------------//
@@ -123,7 +169,7 @@ static void event_handler_get_NTP_time(lv_event_t * event)
 {
 	lv_obj_t *  button = lv_event_get_target(event);
 	lv_obj_t * label = lv_obj_get_child(button, 0);
-    get_NTP_time ();
+    ptr_ntp_data->getTimeData();
 }
 
 //-----------------------------------------------------------------------//
@@ -131,15 +177,40 @@ static void event_handler_switch_btn(lv_event_t * event)
 {
 	lv_obj_t *  button = lv_event_get_target(event);
 	lv_obj_t * label = lv_obj_get_child(button, 0);
-	flags.status_btn_scr = !flags.status_btn_scr;
+
     switch (flags.status_btn_scr)
     {
-        case mcd_screen:
-            lv_scr_load(setup_scr);
+        case wifi_id_setup:
+            flags.status_btn_scr = main;
+            lv_scr_load(main_menu_scr);
             break;
 
-        case main_screen:
-            lv_scr_load(main_menu_scr);
+        case main:
+            flags.status_btn_scr = wifi_id_setup;
+            lv_scr_load(wifi_id_setup_scr);
+            break;
+    }
+}
+
+//-----------------------------------------------------------------------//
+static void event_handler_switch2_btn(lv_event_t * event)
+{
+	lv_obj_t *  button = lv_event_get_target(event);
+	lv_obj_t * label = lv_obj_get_child(button, 0);
+
+    switch (flags.status_btn_scr)
+    {
+        case ip_setup:
+            flags.status_btn_scr = wifi_id_setup;
+            lv_scr_load(wifi_id_setup_scr);
+            break;
+
+        case wifi_id_setup:
+            flags.status_btn_scr = ip_setup;
+            lv_scr_load(ip_setup_scr);
+            break;
+
+        default:
             break;
     }
 }
@@ -183,9 +254,122 @@ void visual_LED::led_status (uint8_t status)
 }
 
 //------------------------------------------------------------------------//
+void set_label::setup_new_text (const char * new_txt)
+{
+    _txt = new_txt;
+    lv_label_set_text_static (scr_label, _txt);
+}
+
+//------------------------------------------------------------------------//
+void time_data_update (char * new_text)
+{
+   clock_label->setup_new_text (new_text);
+}
+
+//------------------------------------------------------------------------//
 static void set_value(void * indic, int32_t v)
 {
     lv_meter_set_indicator_end_value(meter, (lv_meter_indicator_t *)indic, v);
+}
+
+//------------------------------------------------------------------------//
+void text_area :: setup_new_text (const char * txt)
+{
+    _txt = txt;
+    lv_textarea_set_text (ta, _txt);
+}
+
+//------------------------------------------------------------------------//
+void set_ip_area(char * new_text)
+{
+    setup_ip_area->setup_new_text (new_text);
+}
+
+//------------------------------------------------------------------------//
+static void login_event_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * ta = lv_event_get_target(e);
+    if(code == LV_EVENT_CLICKED || code == LV_EVENT_FOCUSED) 
+    {       
+        if(wifi_id_kb != NULL) 
+        {   lv_keyboard_set_textarea(wifi_id_kb, ta);  }    //Focus on the clicked text area
+    }
+    else 
+    {
+        if(code == LV_EVENT_READY) 
+        {   
+            net_setting.replace_ssid (lv_textarea_get_text(ta));
+        }
+    }
+}
+
+//------------------------------------------------------------------------//
+static void passwd_event_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * ta = lv_event_get_target(e);
+    if(code == LV_EVENT_CLICKED || code == LV_EVENT_FOCUSED) 
+    {       
+        if(wifi_id_kb != NULL) 
+        {   lv_keyboard_set_textarea(wifi_id_kb, ta);  }    //Focus on the clicked text area
+    }
+    else 
+    {
+        if(code == LV_EVENT_READY) 
+        {   
+            net_setting.replace_password (lv_textarea_get_text(ta));
+          //  Serial.printf("Ready, current password: %s\r\n", net_setting.password); 
+        }
+    }
+}
+
+//------------------------------------------------------------------------//
+static void setup_ip_event_cb(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * ta = lv_event_get_target(e);
+    if(code == LV_EVENT_CLICKED || code == LV_EVENT_FOCUSED) 
+    {       
+        if(wifi_id_kb != NULL) 
+        {   lv_keyboard_set_textarea(wifi_id_kb, ta);  } //Focus on the clicked text area
+    }
+    else 
+    {
+        if(code == LV_EVENT_READY) 
+        {   
+            net_setting.replace_password (lv_textarea_get_text(ta));
+        }
+    }
+}
+
+//------------------------------------------------------------------------//
+static void event_handler(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+    if(code == LV_EVENT_VALUE_CHANGED) 
+    {
+        char buf[32];
+        lv_dropdown_get_selected_str(obj, buf, sizeof(buf));
+        Serial.println(buf);       
+    }
+}
+
+//------------------------------------------------------------------------//
+void lv_dropdown (lv_obj_t * scr)
+{
+
+    dd = lv_dropdown_create(scr);  /*Create a normal drop down list*/
+    lv_dropdown_set_options(dd, "0.ru.pool.ntp.org\n"
+                            "1.ru.pool.ntp.org\n"
+                            "ntp0.NL.net\n"
+                            "ntp2.vniiftri.ru\n"
+                            "ntp.ix.ru\n"
+                            "ntps1-1.cs.tu-berlin.de");
+
+    lv_obj_align(dd,    LV_ALIGN_TOP_MID, 0, 20);
+    lv_obj_add_event_cb(dd, event_handler, LV_EVENT_ALL, NULL);
 }
 
 //------------------------------------------------------------------------//
@@ -248,16 +432,5 @@ static void clock_meter_init (lv_obj_t * scr)
     lv_anim_start(&a);
 }
 
-//------------------------------------------------------------------------//
-void set_label::setup_new_text (const char * new_txt)
-{
-    _txt = new_txt;
-    lv_label_set_text_static (scr_label, _txt);
-}
 
-//------------------------------------------------------------------------//
-void time_data_update (char * new_text)
-{
-   //lv_label_set_text_static (c_label, text);
-   clock_label->setup_new_text (new_text);
-}
+

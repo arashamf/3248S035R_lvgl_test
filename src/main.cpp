@@ -13,7 +13,6 @@
 //----------------------------------------------------------------------------------------//
 STATUS_t flags;
 static hw_timer_t *timer1 = NULL;
-//char dbg_buf [30];
 static void vTimerContEventCallback(xTimerHandle xTimer); 
 static xTimerHandle xTimerContEvent;
 
@@ -68,5 +67,6 @@ void loop()
 //---------------------------------------------------------------------------------------//
 static void vTimerContEventCallback(xTimerHandle xTimer)
 {
-  time_update();
+  ptr_ntp_data->time_inc ();
+  check_WiFi_status();
 }

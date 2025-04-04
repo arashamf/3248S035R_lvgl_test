@@ -7,10 +7,6 @@
 #include "WiFiUdp.h"
 
 //-------------------------------------------------------------------------------//
-// Enter the WIFI name and password that you can access to the Internet. 
-//It is recommended to use an Android phone for web control to ensure that the ESP32 is in the same network.
-const char* ssid = "fuck_esp";
-const char* password = "93074zar";
 WiFiServer server(80); // Set the web server port number to 80
 String header;  // Variable to store the HTTP request
 String output25State = "off"; // Auxiliary variable for storing the current output state
@@ -22,17 +18,17 @@ static const long timeoutTime = 2000; // Define the timeout in milliseconds (eg:
 WiFiUDP ntpUDP; //объект udp
 NTPClient timeClient(ntpUDP, NTPserver1, 3600, 60000); //конструктор объекта клиента ntp
 NTPtimedata ntp_data (timeClient, c_Time, time_data_update); //конструктор объекта с данными времени
+NTPtimedata * ptr_ntp_data = &ntp_data;
 char c_Time [15]= "00:00:00";  //массив с данными времени формата чч:мм:сс, который будет передаваться для отображения на экране
 char d_Time [15]= "01.01.2000"; //массив с данными даты формата дд.мм.гггг, который будет передаваться для отображения на экране
-
+WiFidata net_setting ("fuck_esp", "93074zar", set_ip_area);
 //-------------------------------------------------------------------------------//
+//static void start_HTTP_server (void);
 static void init_NTP_client (void);
 
 //-------------------------------------------------------------------------------//
  void NTPtimedata::convert_time (void)
  {
-    UNIX_time = _ptr_NTP->getEpochTime();
-    Serial.println("convert data");
     sec =  (UNIX_time % 60);
     minute = (UNIX_time % 3600)/60;
     hour =  (UNIX_time % 86400L)/3600;
@@ -44,19 +40,21 @@ static void init_NTP_client (void);
  void NTPtimedata::getTimeData(void)
  {
     flags.status_NTP = false;
-    if (flags.status_WiFi == ON)
+    if (flags.status_WiFi == true)
     {
       flags.status_NTP = _ptr_NTP->update(); //Обновляем дату  
       if (flags.status_NTP == true )
       { 
+        timeClient.setTimeOffset(10800);      //установка московского времени
+        UNIX_time = _ptr_NTP->getEpochTime();
         NTPtimedata::convert_time (); 
       }
       else
       { Serial.println ("ntp_error"); }
-      NTPLed->led_status (flags.status_NTP);
     }
     else
     { Serial.println("wifi not_connected"); }
+    NTPLed->led_status (flags.status_NTP);
   }
 
 //-------------------------------------------------------------------------------//
@@ -69,11 +67,10 @@ void NTPtimedata::time_inc (void)
 //-------------------------------------------------------------------------------//
 void init_WiFi_connection (void)
 {
-  flags.status_WiFi = OFF;
+  flags.status_WiFi = false;
   WiFiLed->led_status (flags.status_WiFi);
 
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);   // Connect to Wi-Fi network using SSID and password
+  WiFi.begin(net_setting.ssid, net_setting.password);   // Connect to Wi-Fi network using SSID and password
   for (uint8_t count = 0; count < 10; count++) //10 попыток соединения
   {
     if (WiFi.status() != WL_CONNECTED) 
@@ -83,9 +80,11 @@ void init_WiFi_connection (void)
     }
     else
     {
-      Serial.print("IP address: ");
-      Serial.println(WiFi.localIP()); //start the web server
-      flags.status_WiFi = ON;
+      char buf[16];
+      IPAddress ptr_IP = WiFi.localIP();
+      sprintf (buf, "%u.%u.%u.%u", ptr_IP[0], ptr_IP[1], ptr_IP[2], ptr_IP[3]);
+      net_setting.set_ip (buf);
+      flags.status_WiFi = true;
       WiFiLed->led_status (flags.status_WiFi);
       init_NTP_client ();
       return;
@@ -96,32 +95,45 @@ void init_WiFi_connection (void)
 }
 
 //-------------------------------------------------------------------------------//
-static void init_NTP_client (void)
+void check_WiFi_status (void)
+{
+  if (WiFi.status() != WL_CONNECTED) 
+  { 
+    if (flags.status_WiFi == true)
+    {
+      flags.status_WiFi = false;
+      WiFiLed->led_status (flags.status_WiFi);
+    }
+  }
+  else
+  {
+    if (flags.status_WiFi == false)
+    {
+      flags.status_WiFi = true;
+      char buf[16];
+      IPAddress ptr_IP = WiFi.localIP();
+      sprintf (buf, "%u.%u.%u.%u", ptr_IP[0], ptr_IP[1], ptr_IP[2], ptr_IP[3]);
+      net_setting.set_ip (buf);
+      WiFiLed->led_status (flags.status_WiFi);
+    }
+
+  }
+}
+
+//-------------------------------------------------------------------------------//
+void init_NTP_client (void)
 {
   timeClient.begin(); //Запускаем клиент времени  
-  timeClient.setTimeOffset(10800); //установка московского времени
 }
 
 //-------------------------------------------------------------------------------//
-void get_NTP_time (void)
-{
-  ntp_data.getTimeData();
-}
-
-//-------------------------------------------------------------------------------//
-void time_update (void)
-{
-  ntp_data.time_inc ();
-}
-
-//-------------------------------------------------------------------------------//
-static void start_HTTP_server (void)
+/*static void start_HTTP_server (void)
 {
   server.begin();
-}
+}*/
 
 //-------------------------------------------------------------------------------//
-void WiFi_connection_check (void)
+void HTTP_connection_check (void)
 {
   WiFiClient client = server.available();   // Monitor clients
   if (client)  // If a new client connects

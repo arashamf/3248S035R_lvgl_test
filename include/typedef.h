@@ -20,8 +20,9 @@ enum leds
 //---------------------------------------------------------------//
 enum Screens
 {
-    main_screen    =   0,
-    mcd_screen     =   1,
+    main    		=   	0,
+    wifi_id_setup   =   	1,
+	ip_setup   		=   	2,
 };
 
 
@@ -30,10 +31,10 @@ typedef union
 {	
 	struct 
 	{
-		uint8_t							: 5;
+		uint8_t							: 4;
 		uint8_t	status_NTP				: 1;
 		uint8_t	status_WiFi				: 1;
-		uint8_t status_btn_scr 			: 1; 
+		uint8_t status_btn_scr 			: 2; 
 	};
 	uint8_t status;
 } STATUS_t;

@@ -38,8 +38,14 @@ void my_disp_flush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *color
 //-------------------------------------------------------------------------------//
 static void tft_init (void)
 {
-  tft.begin();               //TFT init 
-  tft.setRotation(0);       //(Landscape) Portraite orientation 
+  tft.begin(); //TFT init 
+
+  #ifdef LANDSCAPE 
+      tft.setRotation(landscape_2);       //(Landscape) Portraite orientation 
+  #else
+      tft.setRotation(portraite_1); 
+  #endif
+
   tft.fillScreen(TFT_RED);
   delay(100);
   tft.fillScreen(TFT_GREEN);
@@ -56,10 +62,15 @@ void lvgl_init (void)
     lv_disp_draw_buf_init(&disp_buf, buf, NULL, screenHeight * 10);
 
     lv_disp_drv_init(&disp_drv);      //Initialize the display
-    //disp_drv.hor_res = screenHeight;
-   // disp_drv.ver_res = screenWidth;
-    disp_drv.hor_res = screenWidth;
-    disp_drv.ver_res = screenHeight;
+
+    #ifdef LANDSCAPE 
+      disp_drv.hor_res = screenHeight;
+      disp_drv.ver_res = screenWidth;
+    #else
+      disp_drv.hor_res = screenWidth;
+      disp_drv.ver_res = screenHeight;
+    #endif
+    
     disp_drv.flush_cb = my_disp_flush;
     disp_drv.draw_buf = &disp_buf;
     lv_disp_drv_register(&disp_drv);

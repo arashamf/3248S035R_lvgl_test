@@ -42,7 +42,8 @@ text_area     *             passwd_area;
 text_area     *             login_area;
 text_area     *             setup_ip_area;
 
-static lv_obj_t  *          dd;
+static lv_obj_t  *          select_ntp_menu;
+static lv_obj_t  *          ntp_dropdown_label;
 static lv_obj_t  *          meter; //объект циферблат часов
 
 //------------------------------------------------------------------------//
@@ -56,8 +57,8 @@ char label6 []= "Back";
 const char label_main_src []= "Main Menu"; 
 const char label_setup_src []= "Setup Menu"; 
 //------------------------------------------------------------------------//
-uint8_t size_x = 90;
-uint8_t size_y = 50;
+const uint8_t btn_size_x = 90;
+const uint8_t btn_size_y = 50;
 
 //------------------------------------------------------------------------//
 static void style_init (lv_style_t * , const lv_font_t * );
@@ -74,8 +75,8 @@ static void passwd_event_cb(lv_event_t * );
 static void login_event_cb(lv_event_t * );
 static void setup_ip_event_cb(lv_event_t * );
 
-void lv_dropdown (lv_obj_t * scr);
-
+void ntp_dropdown_menu_init (lv_obj_t * );
+void lbl_dropdown_init (lv_obj_t * , lv_obj_t * );
 //------------------------------------------------------------------------//
 void screens_init (void)
 {
@@ -101,13 +102,13 @@ static lv_obj_t * main_menu_screen_init (void)
     style_init (&midFontStyle, &lv_font_montserrat_20);
     style_init (&BigStyle, &lv_font_montserrat_28);
 
-    ToogleSetupScrBtn1 = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
-    LV_ALIGN_TOP_LEFT, 0, 10, label2);
+    ToogleSetupScrBtn1 = new visual_button (scr, event_handler_switch_btn, btn_size_x, 
+    btn_size_y, LV_ALIGN_TOP_LEFT, 0, 10, label2);
 
-    ToogleInitWiFiBtn = new visual_button (scr, event_handler_wifi_btn, size_x, size_y, 
+    ToogleInitWiFiBtn = new visual_button (scr, event_handler_wifi_btn, btn_size_x, btn_size_y, 
     LV_ALIGN_TOP_MID, 0, 10, label3);
 
-    GetNTPtimeBtn = new visual_button (scr, event_handler_get_NTP_time, size_x, size_y, 
+    GetNTPtimeBtn = new visual_button (scr, event_handler_get_NTP_time, btn_size_x, btn_size_y, 
     LV_ALIGN_TOP_RIGHT, 0, 10, label4);
 
     WiFiLed = new visual_LED (scr, LV_ALIGN_TOP_LEFT, 0, 75);
@@ -127,10 +128,10 @@ static lv_obj_t *  setup_screen_init (void)
     lv_coord_t x_ofs = 0;
     lv_coord_t y_ofs = 100;
 
-    ToogleSetupScrBtn2 = new visual_button (scr, event_handler_switch_btn, size_x, size_y, 
+    ToogleSetupScrBtn2 = new visual_button (scr, event_handler_switch_btn, btn_size_x, btn_size_y, 
     LV_ALIGN_TOP_LEFT, 0, 10, label1);
 
-    ToogleSetIPScrBtn = new visual_button (scr, event_handler_switch2_btn, size_x, size_y, 
+    ToogleSetIPScrBtn = new visual_button (scr, event_handler_switch2_btn, btn_size_x, btn_size_y, 
     LV_ALIGN_TOP_MID, 0, 10, label5);
 
     passwd_area = new text_area (scr,  passwd_event_cb, false,  net_setting.password , 40, LV_ALIGN_TOP_RIGHT, x_ofs, y_ofs);
@@ -152,14 +153,14 @@ static lv_obj_t *  setupIP_screen_init (void)
 
     lv_obj_t *  scr = lv_obj_create (NULL); 
 
-    ToogleSetupScrBtn3 = new visual_button (scr, event_handler_switch2_btn, size_x, size_y, 
-    LV_ALIGN_TOP_LEFT, 0, 10, label6);
+    ToogleSetupScrBtn3 = new visual_button (scr, event_handler_switch2_btn, btn_size_x, 
+    btn_size_y, LV_ALIGN_TOP_LEFT, 0, 10, label6);
 
     setup_ip_area = new text_area (scr,  passwd_event_cb, false,  net_setting.ip , 33, LV_ALIGN_TOP_LEFT, x_ofs, y_ofs);
     lbl_ip_area = new set_label (scr, setup_ip_area->back_ta_ptr(), LV_ALIGN_OUT_TOP_LEFT, 5, 0, "ip adress");
 
-    lv_dropdown (scr);
-
+    ntp_dropdown_menu_init (scr);
+    lbl_dropdown_init (scr, select_ntp_menu);
     return scr; 
 
 }
@@ -169,7 +170,10 @@ static void event_handler_get_NTP_time(lv_event_t * event)
 {
 	lv_obj_t *  button = lv_event_get_target(event);
 	lv_obj_t * label = lv_obj_get_child(button, 0);
-    ptr_ntp_data->getTimeData();
+    if (flags.NTP_start	 == true)
+    {
+        ntp_data->getTimeData();
+    }
 }
 
 //-----------------------------------------------------------------------//
@@ -298,9 +302,7 @@ static void login_event_cb(lv_event_t * e)
     else 
     {
         if(code == LV_EVENT_READY) 
-        {   
-            net_setting.replace_ssid (lv_textarea_get_text(ta));
-        }
+        {   net_setting.replace_ssid (lv_textarea_get_text(ta));    }
     }
 }
 
@@ -317,10 +319,7 @@ static void passwd_event_cb(lv_event_t * e)
     else 
     {
         if(code == LV_EVENT_READY) 
-        {   
-            net_setting.replace_password (lv_textarea_get_text(ta));
-          //  Serial.printf("Ready, current password: %s\r\n", net_setting.password); 
-        }
+        {   net_setting.replace_password (lv_textarea_get_text(ta));    }
     }
 }
 
@@ -337,39 +336,51 @@ static void setup_ip_event_cb(lv_event_t * e)
     else 
     {
         if(code == LV_EVENT_READY) 
-        {   
-            net_setting.replace_password (lv_textarea_get_text(ta));
+        {   net_setting.replace_password (lv_textarea_get_text(ta));}
+    }
+}
+
+//------------------------------------------------------------------------//
+static void event_dropdown_menu(lv_event_t * e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t * obj = lv_event_get_target(e);
+    int16_t index = -1;
+    if(code == LV_EVENT_VALUE_CHANGED) 
+    {
+        index = lv_dropdown_get_selected(obj);
+        if (index > -1)
+        {
+            net_setting.select_ntp_server (index);
+            Serial.printf("ntp server #%u\r\n", index); 
         }
     }
 }
 
 //------------------------------------------------------------------------//
-static void event_handler(lv_event_t * e)
-{
-    lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t * obj = lv_event_get_target(e);
-    if(code == LV_EVENT_VALUE_CHANGED) 
-    {
-        char buf[32];
-        lv_dropdown_get_selected_str(obj, buf, sizeof(buf));
-        Serial.println(buf);       
-    }
-}
-
-//------------------------------------------------------------------------//
-void lv_dropdown (lv_obj_t * scr)
+void ntp_dropdown_menu_init (lv_obj_t * scr)
 {
 
-    dd = lv_dropdown_create(scr);  /*Create a normal drop down list*/
-    lv_dropdown_set_options(dd, "0.ru.pool.ntp.org\n"
+    select_ntp_menu = lv_dropdown_create(scr);  //Create a normal drop down list
+    lv_dropdown_set_options(select_ntp_menu, 
+                            "0.ru.pool.ntp.org\n"
                             "1.ru.pool.ntp.org\n"
                             "ntp0.NL.net\n"
                             "ntp2.vniiftri.ru\n"
-                            "ntp.ix.ru\n"
-                            "ntps1-1.cs.tu-berlin.de");
+                            "ntp.ix.ru\n");
 
-    lv_obj_align(dd,    LV_ALIGN_TOP_MID, 0, 20);
-    lv_obj_add_event_cb(dd, event_handler, LV_EVENT_ALL, NULL);
+    lv_obj_align(select_ntp_menu, LV_ALIGN_TOP_RIGHT, 0, 100);
+    lv_obj_add_event_cb(select_ntp_menu, event_dropdown_menu, LV_EVENT_ALL, NULL);
+    lv_obj_set_size(select_ntp_menu, 200, 35); 
+}
+
+//------------------------------------------------------------------------//
+void lbl_dropdown_init (lv_obj_t * scr, lv_obj_t * ta)
+{
+    ntp_dropdown_label = lv_label_create(scr);
+    lv_obj_align_to(ntp_dropdown_label, ta,LV_ALIGN_OUT_TOP_LEFT, 5, 0);
+    lv_label_set_text_static (ntp_dropdown_label, "ntp servers");
+ 
 }
 
 //------------------------------------------------------------------------//

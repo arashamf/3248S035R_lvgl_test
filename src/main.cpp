@@ -6,6 +6,7 @@
 #include "WiFi_init.h"
 #include "lvgl.h"
 #include "xTimer.h"
+#include "typedef.h"
 
 #define TIMER_DIVIDER         (16)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
@@ -51,7 +52,6 @@ void setup()
   input_driver_init ();
 
   screens_init ();
-  //init_WiFi_connection ();
   
 }
 
@@ -67,6 +67,9 @@ void loop()
 //---------------------------------------------------------------------------------------//
 static void vTimerContEventCallback(xTimerHandle xTimer)
 {
-  ptr_ntp_data->time_inc ();
+  if (flags.NTP_start	 == true)
+  {
+    ntp_data->time_inc ();
+  }
   check_WiFi_status();
 }

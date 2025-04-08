@@ -106,13 +106,13 @@ class text_area
         void setup_new_text (const char * txt);
 
     private:
-        lv_obj_t *  _scr;
-        const char * _title;
-        lv_coord_t _width;
-        lv_align_t  _align;
-        int16_t     kord_x;
-        int16_t     kord_y;
-        const char *      _txt;
+        lv_obj_t *      _scr;
+        const char *    _title;
+        lv_coord_t      _width;
+        lv_align_t      _align;
+        int16_t         kord_x;
+        int16_t         kord_y;
+        const char *    _txt;
   
 };
 

@@ -7,6 +7,10 @@
 #include "WiFiUdp.h"
 
 //-------------------------------------------------------------------------------//
+#define MOSCOW_TIMEOFFSET       10800
+#define NTP_UPDATE_INTERVAL     7200
+
+//-------------------------------------------------------------------------------//
 WiFiServer server(80); // Set the web server port number to 80
 String header;  // Variable to store the HTTP request
 String output25State = "off"; // Auxiliary variable for storing the current output state
@@ -14,14 +18,23 @@ String output26State = "off"; //state blue led
 unsigned long currentTime = millis(); // Current time
 unsigned long previousTime = 0; // Previous time
 static const long timeoutTime = 2000; // Define the timeout in milliseconds (eg: 2000ms = 2s)
+//------------------------------------------------------------------------//
+const char * NTPservers [] {
+                            "0.ru.pool.ntp.org", 
+                            "1.ru.pool.ntp.org",
+                            "ntp0.NL.net",
+                            "ntp2.vniiftri.ru",
+                            "ntp.ix.ru"
+                            };
+
 
 WiFiUDP ntpUDP; //объект udp
-NTPClient timeClient(ntpUDP, NTPserver1, 3600, 60000); //конструктор объекта клиента ntp
-NTPtimedata ntp_data (timeClient, c_Time, time_data_update); //конструктор объекта с данными времени
-NTPtimedata * ptr_ntp_data = &ntp_data;
+NTPClient * timeClient = NULL;
+NTPtimedata * ntp_data ;
 char c_Time [15]= "00:00:00";  //массив с данными времени формата чч:мм:сс, который будет передаваться для отображения на экране
 char d_Time [15]= "01.01.2000"; //массив с данными даты формата дд.мм.гггг, который будет передаваться для отображения на экране
-WiFidata net_setting ("fuck_esp", "93074zar", set_ip_area);
+WiFidata net_setting ("fuck_esp", "93074zar", set_ip_area); //конструктор объекта с сетевыми настройками
+
 //-------------------------------------------------------------------------------//
 //static void start_HTTP_server (void);
 static void init_NTP_client (void);
@@ -45,15 +58,11 @@ static void init_NTP_client (void);
       flags.status_NTP = _ptr_NTP->update(); //Обновляем дату  
       if (flags.status_NTP == true )
       { 
-        timeClient.setTimeOffset(10800);      //установка московского времени
+        timeClient->setTimeOffset(MOSCOW_TIMEOFFSET);      //установка московского времени
         UNIX_time = _ptr_NTP->getEpochTime();
         NTPtimedata::convert_time (); 
       }
-      else
-      { Serial.println ("ntp_error"); }
     }
-    else
-    { Serial.println("wifi not_connected"); }
     NTPLed->led_status (flags.status_NTP);
   }
 
@@ -69,7 +78,6 @@ void init_WiFi_connection (void)
 {
   flags.status_WiFi = false;
   WiFiLed->led_status (flags.status_WiFi);
-
   WiFi.begin(net_setting.ssid, net_setting.password);   // Connect to Wi-Fi network using SSID and password
   for (uint8_t count = 0; count < 10; count++) //10 попыток соединения
   {
@@ -86,11 +94,10 @@ void init_WiFi_connection (void)
       net_setting.set_ip (buf);
       flags.status_WiFi = true;
       WiFiLed->led_status (flags.status_WiFi);
-      init_NTP_client ();
       return;
     }
   }
-  Serial.println("not_connected");
+  init_NTP_client ();
   return;
 }
 
@@ -115,15 +122,23 @@ void check_WiFi_status (void)
       sprintf (buf, "%u.%u.%u.%u", ptr_IP[0], ptr_IP[1], ptr_IP[2], ptr_IP[3]);
       net_setting.set_ip (buf);
       WiFiLed->led_status (flags.status_WiFi);
+     // init_NTP_client ();
     }
 
   }
 }
 
 //-------------------------------------------------------------------------------//
-void init_NTP_client (void)
+static void init_NTP_client (void)
 {
-  timeClient.begin(); //Запускаем клиент времени  
+  if (flags.NTP_start	 == false)
+  {
+    timeClient = new NTPClient (ntpUDP, NTPservers[net_setting.number_ntp_server], MOSCOW_TIMEOFFSET, NTP_UPDATE_INTERVAL); //конструктор объекта клиента ntp
+    ntp_data = new NTPtimedata (timeClient, c_Time, time_data_update); //конструктор объекта с данными времени
+    timeClient->begin(); //Запускаем клиент времени  
+    Serial.printf("time client begin\r\n"); 
+    flags.NTP_start	 = true;
+  }
 }
 
 //-------------------------------------------------------------------------------//

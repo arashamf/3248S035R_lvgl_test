@@ -17,12 +17,12 @@ void switch_net_greenled (uint8_t comm);
 class NTPtimedata
 {
     public:
-        NTPtimedata (NTPClient &ptr_NTP, char * buf, void (*put_data_scr)(char * ) ) 
+        NTPtimedata (NTPClient * ptr_NTP, char * buf, void (*put_data_scr)(char * ) ) 
         {
             sec = minute = hour = day = month = year = 0;
             UNIX_time = 0;
             _buf = buf;
-            this->_ptr_NTP =  &ptr_NTP;
+            this->_ptr_NTP =  ptr_NTP;
             _put_data_scr = put_data_scr;
         }
         int sec;
@@ -58,6 +58,7 @@ class WiFidata
             std :: strcpy (password, pass) ; // инициализация указателя
             sprintf (ip, "%u:%u:%u:%u", 192, 168, 0, 1);
             _put_ip_scr = put_ip_scr;
+            number_ntp_server = 0;
         }
 
         ~WiFidata ()
@@ -91,12 +92,16 @@ class WiFidata
             }
         }
         
+        void select_ntp_server (uint8_t numb)
+        {   number_ntp_server = numb;    }
+
         void set_ip (char * txt)
         {   _put_ip_scr(txt);   }
 
         char * ssid;
         char * password;
         char  ip[16];
+        uint8_t number_ntp_server;
 
     private:
         int len_ssid;
@@ -108,12 +113,8 @@ class WiFidata
 extern char c_Time[];  //массив с данными времени формата чч:мм:сс, который будет передаваться для отображения на экране
 extern char d_Time[]; //массив с данными даты формата дд.мм.гггг, который будет передаваться для отображения на экране
 
-extern NTPtimedata * ptr_ntp_data;
+extern NTPtimedata * ntp_data;
 extern WiFidata net_setting;
 
-const char NTPserver1[] = "0.ru.pool.ntp.org";
-const char NTPserver2[] = "1.ru.pool.ntp.org";
-const char NTPserver3[] = "ntp2.vniiftri.ru";
-const char NTPserver4[] = "ntp.ix.ru";
 
 #endif 

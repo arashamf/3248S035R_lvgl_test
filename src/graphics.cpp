@@ -77,6 +77,7 @@ static void setup_ip_event_cb(lv_event_t * );
 
 void ntp_dropdown_menu_init (lv_obj_t * );
 void lbl_dropdown_init (lv_obj_t * , lv_obj_t * );
+
 //------------------------------------------------------------------------//
 void screens_init (void)
 {
